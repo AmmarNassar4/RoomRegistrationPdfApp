@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net8.0-windows</TargetFramework>
@@ -22,5 +22,20 @@
     <None Update="Templates\empty.pdf">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Update="MainForm.Designer.cs">
+      <DependentUpon>MainForm.cs</DependentUpon>
+    </Compile>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Remove="designer_split_backup_*\*.cs" />
+    <Compile Remove="designer_split_backup_*\**\*.cs" />
+    <Compile Remove="mergekit_backup_*\*.cs" />
+    <Compile Remove="mergekit_backup_*\**\*.cs" />
+    <Compile Remove="roomregistration_designer_fix_backup_*\*.cs" />
+    <Compile Remove="roomregistration_designer_fix_backup_*\**\*.cs" />
   </ItemGroup>
 </Project>

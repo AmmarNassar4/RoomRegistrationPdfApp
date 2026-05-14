@@ -1,15 +1,13 @@
-using Microsoft.Extensions.Configuration;
+﻿using Microsoft.Extensions.Configuration;
 using System.Diagnostics;
+using System.Text;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 
 namespace RoomRegistrationPdfApp;
 
-public sealed class MainForm : Form
+public sealed partial class MainForm : Form
 {
-    private readonly TextBox _roomTextBox = new();
-    private readonly TextBox _outputFolderTextBox = new();
-    private readonly Label _statusLabel = new();
-    private readonly Button _generateButton = new();
-    private readonly Button _browseButton = new();
     private readonly IConfigurationRoot _configuration;
 
     public MainForm()
@@ -26,86 +24,106 @@ public sealed class MainForm : Form
         FormBorderStyle = FormBorderStyle.FixedDialog;
         MaximizeBox = false;
 
-        BuildUi();
-    }
-
-    private void BuildUi()
-    {
-        var roomLabel = new Label
-        {
-            Text = "Room No:",
-            Left = 25,
-            Top = 30,
-            Width = 120
-        };
-
-        _roomTextBox.Left = 150;
-        _roomTextBox.Top = 25;
-        _roomTextBox.Width = 180;
-        _roomTextBox.Font = new Font(Font.FontFamily, 11);
-        _roomTextBox.PlaceholderText = "مثال: 201";
-
-        var outputLabel = new Label
-        {
-            Text = "Output folder:",
-            Left = 25,
-            Top = 75,
-            Width = 120
-        };
-
-        _outputFolderTextBox.Left = 150;
-        _outputFolderTextBox.Top = 70;
-        _outputFolderTextBox.Width = 380;
+        InitializeComponent();
         _outputFolderTextBox.Text = ResolveDefaultOutputFolder();
-
-        _browseButton.Text = "Browse";
-        _browseButton.Left = 540;
-        _browseButton.Top = 68;
-        _browseButton.Width = 85;
-        _browseButton.Click += BrowseButton_Click;
-
-        _generateButton.Text = "Generate RC PDFs";
-        _generateButton.Left = 150;
-        _generateButton.Top = 120;
-        _generateButton.Width = 190;
-        _generateButton.Height = 36;
-        _generateButton.Click += async (_, _) => await GenerateAsync();
-
-        _statusLabel.Left = 25;
-        _statusLabel.Top = 175;
-        _statusLabel.Width = 610;
-        _statusLabel.Height = 50;
-        _statusLabel.ForeColor = Color.DarkSlateGray;
-
-        Controls.Add(roomLabel);
-        Controls.Add(_roomTextBox);
-        Controls.Add(outputLabel);
-        Controls.Add(_outputFolderTextBox);
-        Controls.Add(_browseButton);
-        Controls.Add(_generateButton);
-        Controls.Add(_statusLabel);
     }
 
     private string ResolveDefaultOutputFolder()
     {
         var configured = _configuration["DefaultOutputFolder"];
         if (string.IsNullOrWhiteSpace(configured))
+            configured = _configuration["OutputFolder"];
+
+        if (string.IsNullOrWhiteSpace(configured))
             return Path.Combine(AppContext.BaseDirectory, "Output");
+
+        configured = configured.Trim();
+
+        if (configured.StartsWith(@"\\"))
+            return configured;
 
         return Path.IsPathRooted(configured)
             ? configured
-            : Path.Combine(AppContext.BaseDirectory, configured);
+            : Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, configured));
+    }
+
+    private static string AppSettingsPath => Path.Combine(AppContext.BaseDirectory, "appsettings.json");
+
+    private static void SaveDefaultOutputFolder(string outputFolder)
+    {
+        if (string.IsNullOrWhiteSpace(outputFolder))
+            return;
+
+        var fullPath = Path.GetFullPath(outputFolder.Trim());
+        var settingsPath = AppSettingsPath;
+
+        JsonObject root;
+        if (File.Exists(settingsPath))
+        {
+            var json = File.ReadAllText(settingsPath, Encoding.UTF8);
+            root = JsonNode.Parse(json)?.AsObject() ?? new JsonObject();
+        }
+        else
+        {
+            root = new JsonObject();
+        }
+
+        root["DefaultOutputFolder"] = ToAppSettingsPath(fullPath);
+
+        var options = new JsonSerializerOptions
+        {
+            WriteIndented = true
+        };
+
+        File.WriteAllText(settingsPath, root.ToJsonString(options), Encoding.UTF8);
+    }
+
+    private static string ToAppSettingsPath(string fullPath)
+    {
+        if (fullPath.StartsWith(@"\\"))
+            return fullPath;
+
+        var basePath = Path.GetFullPath(AppContext.BaseDirectory);
+        var relative = Path.GetRelativePath(basePath, fullPath);
+
+        if (!relative.StartsWith("..", StringComparison.Ordinal) && !Path.IsPathRooted(relative))
+            return relative;
+
+        return fullPath;
     }
 
     private void BrowseButton_Click(object? sender, EventArgs e)
     {
+        var currentFolder = _outputFolderTextBox.Text.Trim();
+        if (string.IsNullOrWhiteSpace(currentFolder) || !Directory.Exists(currentFolder))
+            currentFolder = ResolveDefaultOutputFolder();
+
         using var dialog = new FolderBrowserDialog
         {
-            Description = "Select output folder"
+            Description = "Select output folder",
+            SelectedPath = Directory.Exists(currentFolder) ? currentFolder : AppContext.BaseDirectory
         };
 
-        if (dialog.ShowDialog(this) == DialogResult.OK)
-            _outputFolderTextBox.Text = dialog.SelectedPath;
+        if (dialog.ShowDialog(this) != DialogResult.OK)
+            return;
+
+        _outputFolderTextBox.Text = dialog.SelectedPath;
+
+        try
+        {
+            SaveDefaultOutputFolder(dialog.SelectedPath);
+            _statusLabel.Text = $"Output folder saved to appsettings.json: {dialog.SelectedPath}";
+        }
+        catch (Exception ex)
+        {
+            _statusLabel.Text = "Output folder selected, but appsettings.json could not be updated.";
+            MessageBox.Show(this, ex.Message, "appsettings.json", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+        }
+    }
+
+    private async void GenerateButton_Click(object? sender, EventArgs e)
+    {
+        await GenerateAsync();
     }
 
     private async Task GenerateAsync()
@@ -143,6 +161,12 @@ public sealed class MainForm : Form
 
             var templatePath = Path.Combine(AppContext.BaseDirectory, "Templates", "empty.pdf");
             var outputRoot = _outputFolderTextBox.Text.Trim();
+            if (string.IsNullOrWhiteSpace(outputRoot))
+                outputRoot = ResolveDefaultOutputFolder();
+
+            try { SaveDefaultOutputFolder(outputRoot); }
+            catch { /* Saving the default folder is helpful, but PDF generation should continue. */ }
+
             Directory.CreateDirectory(outputRoot);
 
             var safeRoom = SafeFileName(roomNo);
@@ -211,5 +235,10 @@ public sealed class MainForm : Form
         var invalid = Path.GetInvalidFileNameChars();
         var safe = string.Concat(value.Select(ch => invalid.Contains(ch) ? '_' : ch));
         return string.IsNullOrWhiteSpace(safe) ? "NA" : safe.Trim();
+    }
+
+    private void button1_Click(object sender, EventArgs e)
+    {
+        this.WindowState = FormWindowState.Minimized;
     }
 }
