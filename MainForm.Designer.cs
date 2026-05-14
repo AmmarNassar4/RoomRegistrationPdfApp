@@ -124,6 +124,7 @@ partial class MainForm
         StartPosition = FormStartPosition.CenterScreen;
         Text = "Guest Registration RC PDFs";
         TopMost = true;
+        FormClosing += MainForm_FormClosing;
         ResumeLayout(false);
         PerformLayout();
     }

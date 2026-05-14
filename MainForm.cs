@@ -170,8 +170,12 @@ public sealed partial class MainForm : Form
             Directory.CreateDirectory(outputRoot);
 
             var safeRoom = SafeFileName(roomNo);
-            var batchFolder = Path.Combine(outputRoot, $"Room_{safeRoom}_{DateTime.Now:yyyyMMdd_HHmmss}");
-            Directory.CreateDirectory(batchFolder);
+
+            // Folder per day only, for example: \\192.168.8.74\rc\2026-05-14
+            var dayFolder = Path.Combine(outputRoot, DateTime.Now.ToString("yyyy-MM-dd"));
+            Directory.CreateDirectory(dayFolder);
+
+            var batchFolder = dayFolder;
 
             var guestGateOptions = GuestGateOptions.FromConfiguration(_configuration);
             using var consentClient = guestGateOptions.Enabled
@@ -185,7 +189,9 @@ public sealed partial class MainForm : Form
             }
 
             var generator = new PdfRegistrationGenerator();
+            var createdFiles = new List<string>();
             var index = 1;
+
             foreach (var data in registrations)
             {
                 if (consentClient is not null)
@@ -209,14 +215,26 @@ public sealed partial class MainForm : Form
                 var safeConfirmation = SafeFileName(data.ConfirmationNo);
                 var outputPath = Path.Combine(batchFolder, $"RC_{index:000}_Room_{safeRoom}_Reg_{safeReg}_Conf_{safeConfirmation}.pdf");
                 generator.Generate(templatePath, outputPath, data);
-                index++;
+
+                createdFiles.Add(outputPath);
+
+                index++; ;
             }
 
             _statusLabel.Text = $"Created {registrations.Count} RC PDF file(s): {batchFolder}";
 
-            if (MessageBox.Show(this, $"تم إنشاء {registrations.Count} ملف RC. هل تريد فتح المجلد الآن؟", "Done", MessageBoxButtons.YesNo, MessageBoxIcon.Information) == DialogResult.Yes)
+            var fileToOpen = createdFiles.LastOrDefault();
+
+            if (!string.IsNullOrWhiteSpace(fileToOpen) && File.Exists(fileToOpen))
             {
-                Process.Start(new ProcessStartInfo(batchFolder) { UseShellExecute = true });
+                if (MessageBox.Show(this, $"Do you want to review the RC", "Done", MessageBoxButtons.YesNo, MessageBoxIcon.Information) == DialogResult.Yes)
+                {
+                    Process.Start(new ProcessStartInfo(fileToOpen) { UseShellExecute = true });
+                }
+            }
+            else
+            {
+                MessageBox.Show(this, "ERROR.", "Done", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
         }
         catch (Exception ex)
@@ -239,6 +257,12 @@ public sealed partial class MainForm : Form
 
     private void button1_Click(object sender, EventArgs e)
     {
+        this.WindowState = FormWindowState.Minimized;
+    }
+
+    private void MainForm_FormClosing(object sender, FormClosingEventArgs e)
+    {
+        e.Cancel = true;
         this.WindowState = FormWindowState.Minimized;
     }
 }
