@@ -53,6 +53,9 @@ public sealed class PdfRegistrationGenerator
         DrawTermsActualArrivalTime(gfx, smallFont, data.ArrivalTime);
         DrawCenter(gfx, font, data.ReceptionistName, 45, 756, 90, 14);
 
+        // Adjust this box if your template signature field is in a different place.
+        DrawGuestSignature(gfx, data.GuestSignatureImageDataUrl, new XRect(360, 720, 190, 45));
+
         document.Save(outputPath);
     }
     private static void DrawTermsActualArrivalTime(XGraphics gfx, XFont font, string? arrivalTime)
@@ -66,11 +69,38 @@ public sealed class PdfRegistrationGenerator
             new XRect(90, 426, 50, 12),
             XStringFormats.TopLeft);
 
-        // Arabic terms: replace 15:00 ÚÕÑÇð
+        // Arabic terms: replace 15:00 Ø¹ØµØ±Ø§Ù‹
         gfx.DrawRectangle(XBrushes.Transparent, 452, 427, 48, 12);
         gfx.DrawString(arrivalTime, font, XBrushes.Black,
             new XRect(475, 428, 50, 12),
             XStringFormats.TopLeft);
+    }
+
+
+    private static void DrawGuestSignature(XGraphics gfx, string? signatureDataUrl, XRect signatureBox)
+    {
+        var bytes = TryReadDataUrlImage(signatureDataUrl);
+        if (bytes.Length == 0) return;
+
+        using var stream = new MemoryStream(bytes);
+        using var image = XImage.FromStream(stream);
+
+        var scale = Math.Min(signatureBox.Width / image.PixelWidth, signatureBox.Height / image.PixelHeight);
+        var width = image.PixelWidth * scale;
+        var height = image.PixelHeight * scale;
+        var x = signatureBox.X + (signatureBox.Width - width) / 2;
+        var y = signatureBox.Y + (signatureBox.Height - height) / 2;
+
+        gfx.DrawImage(image, x, y, width, height);
+    }
+
+    private static byte[] TryReadDataUrlImage(string? dataUrl)
+    {
+        if (string.IsNullOrWhiteSpace(dataUrl)) return Array.Empty<byte>();
+        var comma = dataUrl.IndexOf(',');
+        var raw = comma >= 0 ? dataUrl[(comma + 1)..] : dataUrl;
+        try { return Convert.FromBase64String(raw); }
+        catch { return Array.Empty<byte>(); }
     }
 
     private static string FormatCurrency(string roomRate, string currency)

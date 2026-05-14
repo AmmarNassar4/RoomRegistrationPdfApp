@@ -58,6 +58,7 @@ public sealed class DatabaseService
                 BillingInstructions = DbValueFormatter.Text(reader["BillingInstructions"]),
                 ModeOfPayment = DbValueFormatter.Text(reader["ModeOfPayment"]),
                 PassportNo = DbValueFormatter.Text(reader["PassportNo"]),
+                IdentityNumber = DbValueFormatter.Text(reader["PassportNo"]),
                 Nationality = DbValueFormatter.Text(reader["Nationality"]),
                 DateOfBirth = DbValueFormatter.DateYmd(reader["DateOfBirth"]),
                 ReceptionistName = string.IsNullOrWhiteSpace(receptionistFromDb) ? fallbackReceptionistName : receptionistFromDb,

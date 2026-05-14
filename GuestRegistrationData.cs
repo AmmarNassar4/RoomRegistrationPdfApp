@@ -27,8 +27,11 @@ public sealed class GuestRegistrationData
     public string BillingInstructions { get; set; } = "";
     public string ModeOfPayment { get; set; } = "";
     public string PassportNo { get; set; } = "";
+    public string IdentityNumber { get; set; } = "";
     public string Nationality { get; set; } = "";
     public string DateOfBirth { get; set; } = "";
     public string ReceptionistName { get; set; } = "";
     public DateTime PrintDateTime { get; set; } = DateTime.Now;
+    public string? GuestSignatureImageDataUrl { get; set; }
+    public string? GuestGateConsentPdfPath { get; set; }
 }

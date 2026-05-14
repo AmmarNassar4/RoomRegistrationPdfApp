@@ -149,10 +149,38 @@ public sealed class MainForm : Form
             var batchFolder = Path.Combine(outputRoot, $"Room_{safeRoom}_{DateTime.Now:yyyyMMdd_HHmmss}");
             Directory.CreateDirectory(batchFolder);
 
+            var guestGateOptions = GuestGateOptions.FromConfiguration(_configuration);
+            using var consentClient = guestGateOptions.Enabled
+                ? new GuestGateConsentClient(guestGateOptions.BaseUrl)
+                : null;
+
+            if (guestGateOptions.Enabled && !guestGateOptions.IsConfigured)
+            {
+                MessageBox.Show(this, "GuestGate is enabled but BaseUrl or Kid is missing in appsettings.json.", "GuestGate", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
             var generator = new PdfRegistrationGenerator();
             var index = 1;
             foreach (var data in registrations)
             {
+                if (consentClient is not null)
+                {
+                    _statusLabel.Text = $"Sending guest {index}/{registrations.Count} to GuestGate for signature...";
+                    var consent = await consentClient.CreateConsentAsync(
+                        data,
+                        guestGateOptions.Kid,
+                        guestGateOptions.DefaultLanguage);
+
+                    _statusLabel.Text = $"Waiting for guest signature {index}/{registrations.Count}: {data.GuestName}";
+                    var signature = await consentClient.WaitForSignatureAsync(
+                        consent.Id,
+                        TimeSpan.FromSeconds(Math.Max(30, guestGateOptions.SignatureWaitSeconds)));
+
+                    data.GuestSignatureImageDataUrl = signature.SignatureImage;
+                    data.GuestGateConsentPdfPath = signature.PdfPath;
+                }
+
                 var safeReg = SafeFileName(data.RegNo);
                 var safeConfirmation = SafeFileName(data.ConfirmationNo);
                 var outputPath = Path.Combine(batchFolder, $"RC_{index:000}_Room_{safeRoom}_Reg_{safeReg}_Conf_{safeConfirmation}.pdf");
