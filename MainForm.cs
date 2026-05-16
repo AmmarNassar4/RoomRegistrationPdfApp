@@ -311,10 +311,45 @@ public sealed partial class MainForm : Form
         }
     }
 
-    private void EndSessionButton_Click(object? sender, EventArgs e)
+    private async void EndSessionButton_Click(object? sender, EventArgs e)
     {
-        _allowClose = true;
-        Close();
+        await EndGuestGateSessionAsync();
+    }
+
+    private async Task EndGuestGateSessionAsync()
+    {
+        var guestGateOptions = GuestGateOptions.FromConfiguration(_configuration);
+        if (!guestGateOptions.Enabled)
+        {
+            _statusLabel.Text = "GuestGate is disabled.";
+            return;
+        }
+
+        if (!guestGateOptions.IsConfigured)
+        {
+            MessageBox.Show(this, "GuestGate BaseUrl or Kid is missing in appsettings.json.", "GuestGate", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
+
+        try
+        {
+            _endSessionButton.Enabled = false;
+            _statusLabel.Text = "Ending kiosk session...";
+
+            using var consentClient = new GuestGateConsentClient(guestGateOptions.BaseUrl);
+            await consentClient.EndActiveSessionAsync(guestGateOptions.Kid);
+
+            _statusLabel.Text = "Kiosk session ended.";
+        }
+        catch (Exception ex)
+        {
+            _statusLabel.Text = "Could not end kiosk session.";
+            MessageBox.Show(this, ex.Message, "End Session", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+        finally
+        {
+            _endSessionButton.Enabled = true;
+        }
     }
 
     private void button1_Click(object sender, EventArgs e)
