@@ -1,4 +1,4 @@
-﻿#nullable enable
+#nullable enable
 
 namespace RoomRegistrationPdfApp;
 
@@ -12,6 +12,8 @@ partial class MainForm
     private TextBox _outputFolderTextBox = null!;
     private Button _browseButton = null!;
     private Button _generateButton = null!;
+    private Button _languageButton = null!;
+    private Button _endSessionButton = null!;
     private Label _statusLabel = null!;
 
     protected override void Dispose(bool disposing)
@@ -32,15 +34,17 @@ partial class MainForm
         _outputFolderTextBox = new TextBox();
         _browseButton = new Button();
         _generateButton = new Button();
+        _languageButton = new Button();
+        _endSessionButton = new Button();
         _statusLabel = new Label();
         button1 = new Button();
         SuspendLayout();
         // 
         // roomLabel
         // 
-        roomLabel.Location = new Point(25, 30);
+        roomLabel.Location = new Point(12, 24);
         roomLabel.Name = "roomLabel";
-        roomLabel.Size = new Size(71, 23);
+        roomLabel.Size = new Size(65, 23);
         roomLabel.TabIndex = 0;
         roomLabel.Text = "Room No:";
         // 
@@ -55,9 +59,9 @@ partial class MainForm
         // _roomTextBox
         // 
         _roomTextBox.Font = new Font("Segoe UI", 11F);
-        _roomTextBox.Location = new Point(102, 23);
+        _roomTextBox.Location = new Point(82, 21);
         _roomTextBox.Name = "_roomTextBox";
-        _roomTextBox.Size = new Size(84, 27);
+        _roomTextBox.Size = new Size(75, 27);
         _roomTextBox.TabIndex = 1;
         // 
         // _outputFolderTextBox
@@ -79,13 +83,33 @@ partial class MainForm
         // 
         // _generateButton
         // 
-        _generateButton.Location = new Point(192, 21);
+        _generateButton.Location = new Point(163, 19);
         _generateButton.Name = "_generateButton";
-        _generateButton.Size = new Size(94, 32);
+        _generateButton.Size = new Size(102, 32);
         _generateButton.TabIndex = 5;
         _generateButton.Text = "Send To tablet";
         _generateButton.UseVisualStyleBackColor = true;
         _generateButton.Click += GenerateButton_Click;
+        // 
+        // _languageButton
+        // 
+        _languageButton.Location = new Point(271, 19);
+        _languageButton.Name = "_languageButton";
+        _languageButton.Size = new Size(112, 32);
+        _languageButton.TabIndex = 6;
+        _languageButton.Text = "Language: AR";
+        _languageButton.UseVisualStyleBackColor = true;
+        _languageButton.Click += LanguageButton_Click;
+        // 
+        // _endSessionButton
+        // 
+        _endSessionButton.Location = new Point(461, 19);
+        _endSessionButton.Name = "_endSessionButton";
+        _endSessionButton.Size = new Size(92, 32);
+        _endSessionButton.TabIndex = 8;
+        _endSessionButton.Text = "End Session";
+        _endSessionButton.UseVisualStyleBackColor = true;
+        _endSessionButton.Click += EndSessionButton_Click;
         // 
         // _statusLabel
         // 
@@ -93,13 +117,13 @@ partial class MainForm
         _statusLabel.Location = new Point(25, 175);
         _statusLabel.Name = "_statusLabel";
         _statusLabel.Size = new Size(610, 50);
-        _statusLabel.TabIndex = 6;
+        _statusLabel.TabIndex = 9;
         // 
         // button1
         // 
-        button1.Location = new Point(292, 21);
+        button1.Location = new Point(389, 19);
         button1.Name = "button1";
-        button1.Size = new Size(65, 32);
+        button1.Size = new Size(66, 32);
         button1.TabIndex = 7;
         button1.Text = "Minimize";
         button1.UseVisualStyleBackColor = true;
@@ -109,8 +133,10 @@ partial class MainForm
         // 
         AutoScaleDimensions = new SizeF(7F, 15F);
         AutoScaleMode = AutoScaleMode.Font;
-        ClientSize = new Size(366, 62);
+        ClientSize = new Size(565, 62);
         Controls.Add(button1);
+        Controls.Add(_endSessionButton);
+        Controls.Add(_languageButton);
         Controls.Add(roomLabel);
         Controls.Add(_roomTextBox);
         Controls.Add(outputLabel);
