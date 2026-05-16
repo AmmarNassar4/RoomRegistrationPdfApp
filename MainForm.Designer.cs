@@ -37,7 +37,6 @@ partial class MainForm
         _languageComboBox = new ComboBox();
         _endSessionButton = new Button();
         _statusLabel = new Label();
-        button1 = new Button();
         SuspendLayout();
         // 
         // roomLabel
@@ -104,7 +103,7 @@ partial class MainForm
         // 
         // _endSessionButton
         // 
-        _endSessionButton.Location = new Point(461, 19);
+        _endSessionButton.Location = new Point(389, 19);
         _endSessionButton.Name = "_endSessionButton";
         _endSessionButton.Size = new Size(92, 32);
         _endSessionButton.TabIndex = 8;
@@ -120,22 +119,11 @@ partial class MainForm
         _statusLabel.Size = new Size(610, 50);
         _statusLabel.TabIndex = 9;
         // 
-        // button1
-        // 
-        button1.Location = new Point(389, 19);
-        button1.Name = "button1";
-        button1.Size = new Size(66, 32);
-        button1.TabIndex = 7;
-        button1.Text = "Minimize";
-        button1.UseVisualStyleBackColor = true;
-        button1.Click += button1_Click;
-        // 
         // MainForm
         // 
         AutoScaleDimensions = new SizeF(7F, 15F);
         AutoScaleMode = AutoScaleMode.Font;
-        ClientSize = new Size(565, 62);
-        Controls.Add(button1);
+        ClientSize = new Size(491, 62);
         Controls.Add(_endSessionButton);
         Controls.Add(_languageComboBox);
         Controls.Add(roomLabel);
@@ -155,6 +143,4 @@ partial class MainForm
         ResumeLayout(false);
         PerformLayout();
     }
-
-    private Button button1;
 }
