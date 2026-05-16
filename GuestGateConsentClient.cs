@@ -54,13 +54,40 @@ public sealed class GuestGateConsentClient : IDisposable
         if (string.IsNullOrWhiteSpace(kid))
             throw new ArgumentException("GuestGate Kid is required.", nameof(kid));
 
+        await CancelActiveConsentAsync(kid, cancellationToken);
+        await CancelActiveKioskSessionAsync(kid, cancellationToken);
+    }
+
+    private async Task CancelActiveConsentAsync(string kid, CancellationToken cancellationToken)
+    {
+        var encodedKid = Uri.EscapeDataString(kid.Trim());
+        using var response = await _http.DeleteAsync($"api/consents/active?kid={encodedKid}", cancellationToken);
+
+        if (response.IsSuccessStatusCode || response.StatusCode == HttpStatusCode.NotFound)
+            return;
+
+        if (response.StatusCode == HttpStatusCode.MethodNotAllowed)
+        {
+            using var fallbackResponse = await _http.PostAsync($"api/consents/cancel?kid={encodedKid}", content: null, cancellationToken);
+            if (fallbackResponse.IsSuccessStatusCode || fallbackResponse.StatusCode == HttpStatusCode.NotFound)
+                return;
+
+            await EnsureSuccessWithBodyAsync(fallbackResponse, cancellationToken);
+            return;
+        }
+
+        await EnsureSuccessWithBodyAsync(response, cancellationToken);
+    }
+
+    private async Task CancelActiveKioskSessionAsync(string kid, CancellationToken cancellationToken)
+    {
         var encodedKid = Uri.EscapeDataString(kid.Trim());
         using var response = await _http.DeleteAsync($"api/sessions/active?kid={encodedKid}", cancellationToken);
 
-        if (response.IsSuccessStatusCode)
+        if (response.IsSuccessStatusCode || response.StatusCode == HttpStatusCode.NotFound)
             return;
 
-        if (response.StatusCode is HttpStatusCode.NotFound or HttpStatusCode.MethodNotAllowed)
+        if (response.StatusCode == HttpStatusCode.MethodNotAllowed)
         {
             using var fallbackResponse = await _http.PostAsync($"api/sessions/cancel?kid={encodedKid}", content: null, cancellationToken);
             if (fallbackResponse.IsSuccessStatusCode || fallbackResponse.StatusCode == HttpStatusCode.NotFound)
