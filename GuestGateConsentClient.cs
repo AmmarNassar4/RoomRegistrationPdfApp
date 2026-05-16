@@ -1,3 +1,4 @@
+using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json.Serialization;
 
@@ -46,6 +47,30 @@ public sealed class GuestGateConsentClient : IDisposable
 
         var created = await response.Content.ReadFromJsonAsync<GuestGateConsentCreateResponse>(cancellationToken: cancellationToken);
         return created ?? throw new InvalidOperationException("GuestGate returned an empty consent-create response.");
+    }
+
+    public async Task EndActiveSessionAsync(string kid, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(kid))
+            throw new ArgumentException("GuestGate Kid is required.", nameof(kid));
+
+        var encodedKid = Uri.EscapeDataString(kid.Trim());
+        using var response = await _http.DeleteAsync($"api/sessions/active?kid={encodedKid}", cancellationToken);
+
+        if (response.IsSuccessStatusCode)
+            return;
+
+        if (response.StatusCode is HttpStatusCode.NotFound or HttpStatusCode.MethodNotAllowed)
+        {
+            using var fallbackResponse = await _http.PostAsync($"api/sessions/cancel?kid={encodedKid}", content: null, cancellationToken);
+            if (fallbackResponse.IsSuccessStatusCode || fallbackResponse.StatusCode == HttpStatusCode.NotFound)
+                return;
+
+            await EnsureSuccessWithBodyAsync(fallbackResponse, cancellationToken);
+            return;
+        }
+
+        await EnsureSuccessWithBodyAsync(response, cancellationToken);
     }
 
     public async Task<GuestGateConsentSignatureResponse> WaitForSignatureAsync(
