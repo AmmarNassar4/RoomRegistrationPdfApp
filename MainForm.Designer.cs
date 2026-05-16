@@ -103,6 +103,7 @@ partial class MainForm
         // 
         // _endSessionButton
         // 
+        _endSessionButton.Enabled = false;
         _endSessionButton.Location = new Point(389, 19);
         _endSessionButton.Name = "_endSessionButton";
         _endSessionButton.Size = new Size(92, 32);
