@@ -30,7 +30,7 @@ public sealed partial class MainForm : Form
 
         InitializeComponent();
         _outputFolderTextBox.Text = ResolveDefaultOutputFolder();
-        UpdateLanguageButtonText();
+        SelectPreferredLanguage();
     }
 
     private string ResolveDefaultOutputFolder()
@@ -60,8 +60,6 @@ public sealed partial class MainForm : Form
             return;
 
         var fullPath = Path.GetFullPath(outputFolder.Trim());
-        var settingsPath = AppSettingsPath;
-
         var root = ReadAppSettings();
         root["DefaultOutputFolder"] = ToAppSettingsPath(fullPath);
         WriteAppSettings(root);
@@ -104,15 +102,18 @@ public sealed partial class MainForm : Form
 
     private static string NormalizeLanguage(string? language)
     {
-        if (string.Equals(language?.Trim(), "en", StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(language?.Trim(), "en", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(language?.Trim(), "English", StringComparison.OrdinalIgnoreCase))
             return "en";
 
         return "ar";
     }
 
-    private void UpdateLanguageButtonText()
+    private void SelectPreferredLanguage()
     {
-        _languageButton.Text = _preferredLanguage == "en" ? "Language: EN" : "Language: AR";
+        _languageComboBox.SelectedIndexChanged -= LanguageComboBox_SelectedIndexChanged;
+        _languageComboBox.SelectedItem = _preferredLanguage == "en" ? "English" : "Arabic";
+        _languageComboBox.SelectedIndexChanged += LanguageComboBox_SelectedIndexChanged;
     }
 
     private static string ToAppSettingsPath(string fullPath)
@@ -294,10 +295,9 @@ public sealed partial class MainForm : Form
         return string.IsNullOrWhiteSpace(safe) ? "NA" : safe.Trim();
     }
 
-    private void LanguageButton_Click(object? sender, EventArgs e)
+    private void LanguageComboBox_SelectedIndexChanged(object? sender, EventArgs e)
     {
-        _preferredLanguage = _preferredLanguage == "en" ? "ar" : "en";
-        UpdateLanguageButtonText();
+        _preferredLanguage = NormalizeLanguage(_languageComboBox.SelectedItem?.ToString());
 
         try
         {
