@@ -11,6 +11,7 @@ public sealed partial class MainForm : Form
     private readonly IConfigurationRoot _configuration;
     private string _preferredLanguage;
     private bool _allowClose;
+    private CancellationTokenSource? _guestGateWaitCancellationSource;
 
     public MainForm()
     {
@@ -180,14 +181,23 @@ public sealed partial class MainForm : Form
             return;
         }
 
+        CancellationTokenSource? sessionCancellation = null;
+
         try
         {
             _generateButton.Enabled = false;
             _statusLabel.Text = "Getting registrations from SQL Server...";
 
+            _guestGateWaitCancellationSource?.Cancel();
+            _guestGateWaitCancellationSource?.Dispose();
+            sessionCancellation = new CancellationTokenSource();
+            _guestGateWaitCancellationSource = sessionCancellation;
+            var cancellationToken = sessionCancellation.Token;
+
             var receptionist = _configuration["ReceptionistName"] ?? Environment.UserName;
             var db = new DatabaseService(connectionString);
             var registrations = await db.GetGuestRegistrationsByRoomAsync(roomNo, receptionist);
+            cancellationToken.ThrowIfCancellationRequested();
 
             if (registrations.Count == 0)
             {
@@ -234,22 +244,28 @@ public sealed partial class MainForm : Form
 
             foreach (var data in registrations)
             {
+                cancellationToken.ThrowIfCancellationRequested();
+
                 if (consentClient is not null)
                 {
                     _statusLabel.Text = $"Sending guest {index}/{registrations.Count} to GuestGate for signature...";
                     var consent = await consentClient.CreateConsentAsync(
                         data,
                         guestGateOptions.Kid,
-                        guestGateOptions.DefaultLanguage);
+                        guestGateOptions.DefaultLanguage,
+                        cancellationToken);
 
                     _statusLabel.Text = $"Waiting for guest signature {index}/{registrations.Count}: {data.GuestName}";
                     var signature = await consentClient.WaitForSignatureAsync(
                         consent.Id,
-                        TimeSpan.FromSeconds(Math.Max(30, guestGateOptions.SignatureWaitSeconds)));
+                        TimeSpan.FromSeconds(Math.Max(30, guestGateOptions.SignatureWaitSeconds)),
+                        cancellationToken);
 
                     data.GuestSignatureImageDataUrl = signature.SignatureImage;
                     data.GuestGateConsentPdfPath = signature.PdfPath;
                 }
+
+                cancellationToken.ThrowIfCancellationRequested();
 
                 var safeReg = SafeFileName(data.RegNo);
                 var safeConfirmation = SafeFileName(data.ConfirmationNo);
@@ -277,6 +293,10 @@ public sealed partial class MainForm : Form
                 MessageBox.Show(this, "ERROR.", "Done", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
         }
+        catch (OperationCanceledException)
+        {
+            _statusLabel.Text = "Kiosk session ended. Send To tablet is ready.";
+        }
         catch (Exception ex)
         {
             _statusLabel.Text = "Error.";
@@ -284,6 +304,10 @@ public sealed partial class MainForm : Form
         }
         finally
         {
+            if (ReferenceEquals(_guestGateWaitCancellationSource, sessionCancellation))
+                _guestGateWaitCancellationSource = null;
+
+            sessionCancellation?.Dispose();
             _generateButton.Enabled = true;
         }
     }
@@ -322,11 +346,13 @@ public sealed partial class MainForm : Form
         if (!guestGateOptions.Enabled)
         {
             _statusLabel.Text = "GuestGate is disabled.";
+            _generateButton.Enabled = true;
             return;
         }
 
         if (!guestGateOptions.IsConfigured)
         {
+            _generateButton.Enabled = true;
             MessageBox.Show(this, "GuestGate BaseUrl or Kid is missing in appsettings.json.", "GuestGate", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             return;
         }
@@ -336,10 +362,13 @@ public sealed partial class MainForm : Form
             _endSessionButton.Enabled = false;
             _statusLabel.Text = "Ending kiosk session...";
 
+            _guestGateWaitCancellationSource?.Cancel();
+            _generateButton.Enabled = true;
+
             using var consentClient = new GuestGateConsentClient(guestGateOptions.BaseUrl);
             await consentClient.EndActiveSessionAsync(guestGateOptions.Kid);
 
-            _statusLabel.Text = "Kiosk session ended.";
+            _statusLabel.Text = "Kiosk session ended. Send To tablet is ready.";
         }
         catch (Exception ex)
         {
@@ -348,6 +377,7 @@ public sealed partial class MainForm : Form
         }
         finally
         {
+            _generateButton.Enabled = true;
             _endSessionButton.Enabled = true;
         }
     }
