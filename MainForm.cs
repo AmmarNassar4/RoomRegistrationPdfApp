@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Configuration;
 using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
@@ -9,6 +9,8 @@ namespace RoomRegistrationPdfApp;
 public sealed partial class MainForm : Form
 {
     private readonly IConfigurationRoot _configuration;
+    private string _preferredLanguage;
+    private bool _allowClose;
 
     public MainForm()
     {
@@ -18,14 +20,17 @@ public sealed partial class MainForm : Form
             .Build();
 
         Text = "Guest Registration RC PDFs";
-        Width = 680;
-        Height = 270;
+        Width = 590;
+        Height = 100;
         StartPosition = FormStartPosition.CenterScreen;
         FormBorderStyle = FormBorderStyle.FixedDialog;
         MaximizeBox = false;
 
+        _preferredLanguage = NormalizeLanguage(_configuration["GuestGate:DefaultLanguage"]);
+
         InitializeComponent();
         _outputFolderTextBox.Text = ResolveDefaultOutputFolder();
+        UpdateLanguageButtonText();
     }
 
     private string ResolveDefaultOutputFolder()
@@ -57,25 +62,57 @@ public sealed partial class MainForm : Form
         var fullPath = Path.GetFullPath(outputFolder.Trim());
         var settingsPath = AppSettingsPath;
 
-        JsonObject root;
-        if (File.Exists(settingsPath))
-        {
-            var json = File.ReadAllText(settingsPath, Encoding.UTF8);
-            root = JsonNode.Parse(json)?.AsObject() ?? new JsonObject();
-        }
-        else
-        {
-            root = new JsonObject();
-        }
-
+        var root = ReadAppSettings();
         root["DefaultOutputFolder"] = ToAppSettingsPath(fullPath);
+        WriteAppSettings(root);
+    }
 
+    private static void SaveDefaultGuestGateLanguage(string language)
+    {
+        var normalizedLanguage = NormalizeLanguage(language);
+        var root = ReadAppSettings();
+
+        if (root["GuestGate"] is not JsonObject guestGate)
+        {
+            guestGate = new JsonObject();
+            root["GuestGate"] = guestGate;
+        }
+
+        guestGate["DefaultLanguage"] = normalizedLanguage;
+        WriteAppSettings(root);
+    }
+
+    private static JsonObject ReadAppSettings()
+    {
+        var settingsPath = AppSettingsPath;
+        if (!File.Exists(settingsPath))
+            return new JsonObject();
+
+        var json = File.ReadAllText(settingsPath, Encoding.UTF8);
+        return JsonNode.Parse(json)?.AsObject() ?? new JsonObject();
+    }
+
+    private static void WriteAppSettings(JsonObject root)
+    {
         var options = new JsonSerializerOptions
         {
             WriteIndented = true
         };
 
-        File.WriteAllText(settingsPath, root.ToJsonString(options), Encoding.UTF8);
+        File.WriteAllText(AppSettingsPath, root.ToJsonString(options), Encoding.UTF8);
+    }
+
+    private static string NormalizeLanguage(string? language)
+    {
+        if (string.Equals(language?.Trim(), "en", StringComparison.OrdinalIgnoreCase))
+            return "en";
+
+        return "ar";
+    }
+
+    private void UpdateLanguageButtonText()
+    {
+        _languageButton.Text = _preferredLanguage == "en" ? "Language: EN" : "Language: AR";
     }
 
     private static string ToAppSettingsPath(string fullPath)
@@ -178,6 +215,8 @@ public sealed partial class MainForm : Form
             var batchFolder = dayFolder;
 
             var guestGateOptions = GuestGateOptions.FromConfiguration(_configuration);
+            guestGateOptions.DefaultLanguage = _preferredLanguage;
+
             using var consentClient = guestGateOptions.Enabled
                 ? new GuestGateConsentClient(guestGateOptions.BaseUrl)
                 : null;
@@ -255,6 +294,29 @@ public sealed partial class MainForm : Form
         return string.IsNullOrWhiteSpace(safe) ? "NA" : safe.Trim();
     }
 
+    private void LanguageButton_Click(object? sender, EventArgs e)
+    {
+        _preferredLanguage = _preferredLanguage == "en" ? "ar" : "en";
+        UpdateLanguageButtonText();
+
+        try
+        {
+            SaveDefaultGuestGateLanguage(_preferredLanguage);
+            _statusLabel.Text = $"Preferred language saved: {_preferredLanguage.ToUpperInvariant()}";
+        }
+        catch (Exception ex)
+        {
+            _statusLabel.Text = "Preferred language changed for this session only.";
+            MessageBox.Show(this, ex.Message, "appsettings.json", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+        }
+    }
+
+    private void EndSessionButton_Click(object? sender, EventArgs e)
+    {
+        _allowClose = true;
+        Close();
+    }
+
     private void button1_Click(object sender, EventArgs e)
     {
         this.WindowState = FormWindowState.Minimized;
@@ -262,6 +324,9 @@ public sealed partial class MainForm : Form
 
     private void MainForm_FormClosing(object sender, FormClosingEventArgs e)
     {
+        if (_allowClose)
+            return;
+
         e.Cancel = true;
         this.WindowState = FormWindowState.Minimized;
     }
