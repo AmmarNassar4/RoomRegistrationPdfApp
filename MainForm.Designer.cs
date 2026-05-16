@@ -12,7 +12,7 @@ partial class MainForm
     private TextBox _outputFolderTextBox = null!;
     private Button _browseButton = null!;
     private Button _generateButton = null!;
-    private Button _languageButton = null!;
+    private ComboBox _languageComboBox = null!;
     private Button _endSessionButton = null!;
     private Label _statusLabel = null!;
 
@@ -34,7 +34,7 @@ partial class MainForm
         _outputFolderTextBox = new TextBox();
         _browseButton = new Button();
         _generateButton = new Button();
-        _languageButton = new Button();
+        _languageComboBox = new ComboBox();
         _endSessionButton = new Button();
         _statusLabel = new Label();
         button1 = new Button();
@@ -91,15 +91,16 @@ partial class MainForm
         _generateButton.UseVisualStyleBackColor = true;
         _generateButton.Click += GenerateButton_Click;
         // 
-        // _languageButton
+        // _languageComboBox
         // 
-        _languageButton.Location = new Point(271, 19);
-        _languageButton.Name = "_languageButton";
-        _languageButton.Size = new Size(112, 32);
-        _languageButton.TabIndex = 6;
-        _languageButton.Text = "Language: AR";
-        _languageButton.UseVisualStyleBackColor = true;
-        _languageButton.Click += LanguageButton_Click;
+        _languageComboBox.DropDownStyle = ComboBoxStyle.DropDownList;
+        _languageComboBox.FormattingEnabled = true;
+        _languageComboBox.Items.AddRange(new object[] { "Arabic", "English" });
+        _languageComboBox.Location = new Point(271, 23);
+        _languageComboBox.Name = "_languageComboBox";
+        _languageComboBox.Size = new Size(112, 23);
+        _languageComboBox.TabIndex = 6;
+        _languageComboBox.SelectedIndexChanged += LanguageComboBox_SelectedIndexChanged;
         // 
         // _endSessionButton
         // 
@@ -136,7 +137,7 @@ partial class MainForm
         ClientSize = new Size(565, 62);
         Controls.Add(button1);
         Controls.Add(_endSessionButton);
-        Controls.Add(_languageButton);
+        Controls.Add(_languageComboBox);
         Controls.Add(roomLabel);
         Controls.Add(_roomTextBox);
         Controls.Add(outputLabel);
