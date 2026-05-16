@@ -420,4 +420,9 @@ public sealed partial class MainForm : Form
         e.Cancel = true;
         this.WindowState = FormWindowState.Minimized;
     }
+
+    private void roomLabel_DoubleClick(object sender, EventArgs e)
+    {
+        System.Windows.Forms.Application.ExitThread();
+    }
 }

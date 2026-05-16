@@ -46,6 +46,7 @@ partial class MainForm
         roomLabel.Size = new Size(65, 23);
         roomLabel.TabIndex = 0;
         roomLabel.Text = "Room No:";
+        roomLabel.DoubleClick += roomLabel_DoubleClick;
         // 
         // outputLabel
         // 
