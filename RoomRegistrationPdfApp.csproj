@@ -5,7 +5,7 @@
     <UseWindowsForms>true</UseWindowsForms>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <ApplicationIcon></ApplicationIcon>
+    <ApplicationIcon>sigin.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
@@ -37,5 +37,9 @@
     <Compile Remove="mergekit_backup_*\**\*.cs" />
     <Compile Remove="roomregistration_designer_fix_backup_*\*.cs" />
     <Compile Remove="roomregistration_designer_fix_backup_*\**\*.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="sigin.ico" />
   </ItemGroup>
 </Project>

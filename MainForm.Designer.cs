@@ -28,6 +28,7 @@ partial class MainForm
 
     private void InitializeComponent()
     {
+        System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(MainForm));
         roomLabel = new Label();
         outputLabel = new Label();
         _roomTextBox = new TextBox();
@@ -136,6 +137,7 @@ partial class MainForm
         Controls.Add(_generateButton);
         Controls.Add(_statusLabel);
         FormBorderStyle = FormBorderStyle.FixedToolWindow;
+        Icon = (Icon)resources.GetObject("$this.Icon");
         MaximizeBox = false;
         Name = "MainForm";
         StartPosition = FormStartPosition.CenterScreen;
