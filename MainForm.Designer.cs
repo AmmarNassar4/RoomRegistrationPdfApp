@@ -14,7 +14,10 @@ partial class MainForm
     private Button _generateButton = null!;
     private ComboBox _languageComboBox = null!;
     private Button _endSessionButton = null!;
-    private Label _statusLabel = null!;
+    private StatusStrip _statusStrip = null!;
+    private ToolStripStatusLabel _statusLabel = null!;
+    private ToolStripStatusLabel _connectionStatusLabel = null!;
+    private ToolStripStatusLabel _kioskStatusLabel = null!;
 
     protected override void Dispose(bool disposing)
     {
@@ -37,7 +40,11 @@ partial class MainForm
         _generateButton = new Button();
         _languageComboBox = new ComboBox();
         _endSessionButton = new Button();
-        _statusLabel = new Label();
+        _statusStrip = new StatusStrip();
+        _statusLabel = new ToolStripStatusLabel();
+        _connectionStatusLabel = new ToolStripStatusLabel();
+        _kioskStatusLabel = new ToolStripStatusLabel();
+        _statusStrip.SuspendLayout();
         SuspendLayout();
         // 
         // roomLabel
@@ -114,19 +121,44 @@ partial class MainForm
         _endSessionButton.UseVisualStyleBackColor = true;
         _endSessionButton.Click += EndSessionButton_Click;
         // 
+        // _statusStrip
+        // 
+        _statusStrip.Items.AddRange(new ToolStripItem[] { _statusLabel, _connectionStatusLabel, _kioskStatusLabel });
+        _statusStrip.Location = new Point(0, 103);
+        _statusStrip.Name = "_statusStrip";
+        _statusStrip.Size = new Size(650, 22);
+        _statusStrip.TabIndex = 9;
+        _statusStrip.Text = "statusStrip1";
+        // 
         // _statusLabel
         // 
         _statusLabel.ForeColor = Color.DarkSlateGray;
-        _statusLabel.Location = new Point(25, 175);
         _statusLabel.Name = "_statusLabel";
-        _statusLabel.Size = new Size(610, 50);
-        _statusLabel.TabIndex = 9;
+        _statusLabel.Size = new Size(373, 17);
+        _statusLabel.Spring = true;
+        _statusLabel.Text = "Ready.";
+        _statusLabel.TextAlign = ContentAlignment.MiddleLeft;
+        // 
+        // _connectionStatusLabel
+        // 
+        _connectionStatusLabel.BorderSides = ToolStripStatusLabelBorderSides.Left;
+        _connectionStatusLabel.ForeColor = Color.DarkGoldenrod;
+        _connectionStatusLabel.Name = "_connectionStatusLabel";
+        _connectionStatusLabel.Size = new Size(149, 17);
+        _connectionStatusLabel.Text = "GuestGate: Checking...";
+        // 
+        // _kioskStatusLabel
+        // 
+        _kioskStatusLabel.BorderSides = ToolStripStatusLabelBorderSides.Left;
+        _kioskStatusLabel.Name = "_kioskStatusLabel";
+        _kioskStatusLabel.Size = new Size(113, 17);
+        _kioskStatusLabel.Text = "Kiosk: Not set";
         // 
         // MainForm
         // 
         AutoScaleDimensions = new SizeF(7F, 15F);
         AutoScaleMode = AutoScaleMode.Font;
-        ClientSize = new Size(491, 62);
+        ClientSize = new Size(650, 125);
         Controls.Add(_endSessionButton);
         Controls.Add(_languageComboBox);
         Controls.Add(roomLabel);
@@ -135,7 +167,7 @@ partial class MainForm
         Controls.Add(_outputFolderTextBox);
         Controls.Add(_browseButton);
         Controls.Add(_generateButton);
-        Controls.Add(_statusLabel);
+        Controls.Add(_statusStrip);
         FormBorderStyle = FormBorderStyle.FixedToolWindow;
         Icon = (Icon)resources.GetObject("$this.Icon");
         MaximizeBox = false;
@@ -143,7 +175,10 @@ partial class MainForm
         StartPosition = FormStartPosition.CenterScreen;
         Text = "Guest Registration RC PDFs";
         TopMost = true;
+        Shown += MainForm_Shown;
         FormClosing += MainForm_FormClosing;
+        _statusStrip.ResumeLayout(false);
+        _statusStrip.PerformLayout();
         ResumeLayout(false);
         PerformLayout();
     }
