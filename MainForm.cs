@@ -1,5 +1,7 @@
 using Microsoft.Extensions.Configuration;
 using System.Diagnostics;
+using System.Drawing;
+using System.Net.Http;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -34,6 +36,7 @@ public sealed partial class MainForm : Form
         _outputFolderTextBox.Text = ResolveDefaultOutputFolder();
         SelectPreferredLanguage();
         SetGuestGateSessionActive(false);
+        UpdateStatusBarKiosk();
     }
 
     private string ResolveDefaultOutputFolder()
@@ -123,6 +126,59 @@ public sealed partial class MainForm : Form
     {
         _guestGateSessionActive = isActive;
         _endSessionButton.Enabled = isActive;
+    }
+
+    private void SetConnectionStatus(string text, Color color)
+    {
+        _connectionStatusLabel.Text = text;
+        _connectionStatusLabel.ForeColor = color;
+    }
+
+    private void UpdateStatusBarKiosk()
+    {
+        var guestGateOptions = GuestGateOptions.FromConfiguration(_configuration);
+        _kioskStatusLabel.Text = string.IsNullOrWhiteSpace(guestGateOptions.Kid)
+            ? "Kiosk: Not set"
+            : $"Kiosk: {guestGateOptions.Kid.Trim()}";
+    }
+
+    private async Task RefreshGuestGateConnectionStatusAsync()
+    {
+        var guestGateOptions = GuestGateOptions.FromConfiguration(_configuration);
+        UpdateStatusBarKiosk();
+
+        if (!guestGateOptions.Enabled)
+        {
+            SetConnectionStatus("GuestGate: Disabled", Color.DarkGoldenrod);
+            return;
+        }
+
+        if (!guestGateOptions.IsConfigured)
+        {
+            SetConnectionStatus("GuestGate: Not configured", Color.Firebrick);
+            return;
+        }
+
+        SetConnectionStatus("GuestGate: Checking...", Color.DarkGoldenrod);
+
+        try
+        {
+            using var http = new HttpClient
+            {
+                BaseAddress = new Uri(guestGateOptions.BaseUrl.TrimEnd('/') + "/"),
+                Timeout = TimeSpan.FromSeconds(5)
+            };
+
+            using var response = await http.GetAsync("", HttpCompletionOption.ResponseHeadersRead);
+            if ((int)response.StatusCode < 500)
+                SetConnectionStatus("GuestGate: Connected", Color.ForestGreen);
+            else
+                SetConnectionStatus($"GuestGate: Error {(int)response.StatusCode}", Color.Firebrick);
+        }
+        catch
+        {
+            SetConnectionStatus("GuestGate: Offline", Color.Firebrick);
+        }
     }
 
     private static string ToAppSettingsPath(string fullPath)
@@ -236,16 +292,18 @@ public sealed partial class MainForm : Form
 
             var guestGateOptions = GuestGateOptions.FromConfiguration(_configuration);
             guestGateOptions.DefaultLanguage = _preferredLanguage;
+            UpdateStatusBarKiosk();
+
+            if (guestGateOptions.Enabled && !guestGateOptions.IsConfigured)
+            {
+                SetConnectionStatus("GuestGate: Not configured", Color.Firebrick);
+                MessageBox.Show(this, "GuestGate is enabled but BaseUrl or Kid is missing in appsettings.json.", "GuestGate", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
 
             using var consentClient = guestGateOptions.Enabled
                 ? new GuestGateConsentClient(guestGateOptions.BaseUrl)
                 : null;
-
-            if (guestGateOptions.Enabled && !guestGateOptions.IsConfigured)
-            {
-                MessageBox.Show(this, "GuestGate is enabled but BaseUrl or Kid is missing in appsettings.json.", "GuestGate", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
-            }
 
             var generator = new PdfRegistrationGenerator();
             var createdFiles = new List<string>();
@@ -263,6 +321,7 @@ public sealed partial class MainForm : Form
                         guestGateOptions.Kid,
                         guestGateOptions.DefaultLanguage,
                         cancellationToken);
+                    SetConnectionStatus("GuestGate: Connected", Color.ForestGreen);
 
                     SetGuestGateSessionActive(true);
 
@@ -271,6 +330,7 @@ public sealed partial class MainForm : Form
                         consent.Id,
                         TimeSpan.FromSeconds(Math.Max(30, guestGateOptions.SignatureWaitSeconds)),
                         cancellationToken);
+                    SetConnectionStatus("GuestGate: Connected", Color.ForestGreen);
 
                     SetGuestGateSessionActive(false);
 
@@ -311,6 +371,13 @@ public sealed partial class MainForm : Form
         {
             SetGuestGateSessionActive(false);
             _statusLabel.Text = "Kiosk session ended. Send To tablet is ready.";
+        }
+        catch (HttpRequestException ex)
+        {
+            SetGuestGateSessionActive(false);
+            SetConnectionStatus("GuestGate: Offline", Color.Firebrick);
+            _statusLabel.Text = "GuestGate connection error.";
+            MessageBox.Show(this, ex.Message, "GuestGate Connection", MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
         catch (Exception ex)
         {
@@ -364,8 +431,11 @@ public sealed partial class MainForm : Form
     private async Task EndGuestGateSessionAsync()
     {
         var guestGateOptions = GuestGateOptions.FromConfiguration(_configuration);
+        UpdateStatusBarKiosk();
+
         if (!guestGateOptions.Enabled)
         {
+            SetConnectionStatus("GuestGate: Disabled", Color.DarkGoldenrod);
             _statusLabel.Text = "GuestGate is disabled.";
             _generateButton.Enabled = true;
             SetGuestGateSessionActive(false);
@@ -374,6 +444,7 @@ public sealed partial class MainForm : Form
 
         if (!guestGateOptions.IsConfigured)
         {
+            SetConnectionStatus("GuestGate: Not configured", Color.Firebrick);
             _generateButton.Enabled = true;
             SetGuestGateSessionActive(false);
             MessageBox.Show(this, "GuestGate BaseUrl or Kid is missing in appsettings.json.", "GuestGate", MessageBoxButtons.OK, MessageBoxIcon.Warning);
@@ -390,9 +461,16 @@ public sealed partial class MainForm : Form
 
             using var consentClient = new GuestGateConsentClient(guestGateOptions.BaseUrl);
             await consentClient.EndActiveSessionAsync(guestGateOptions.Kid);
+            SetConnectionStatus("GuestGate: Connected", Color.ForestGreen);
 
             SetGuestGateSessionActive(false);
             _statusLabel.Text = "Kiosk session ended. Send To tablet is ready.";
+        }
+        catch (HttpRequestException ex)
+        {
+            SetConnectionStatus("GuestGate: Offline", Color.Firebrick);
+            _statusLabel.Text = "Could not end kiosk session.";
+            MessageBox.Show(this, ex.Message, "End Session", MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
         catch (Exception ex)
         {
@@ -410,6 +488,11 @@ public sealed partial class MainForm : Form
     private void button1_Click(object sender, EventArgs e)
     {
         this.WindowState = FormWindowState.Minimized;
+    }
+
+    private async void MainForm_Shown(object? sender, EventArgs e)
+    {
+        await RefreshGuestGateConnectionStatusAsync();
     }
 
     private void MainForm_FormClosing(object sender, FormClosingEventArgs e)
