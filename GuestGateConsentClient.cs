@@ -68,7 +68,7 @@ public sealed class GuestGateConsentClient : IDisposable
 
         if (response.StatusCode == HttpStatusCode.MethodNotAllowed)
         {
-            using var fallbackResponse = await _http.PostAsync($"api/consents/cancel?kid={encodedKid}", content: null, cancellationToken);
+            using var fallbackResponse = await _http.PostAsync($"api/consents/cancel?kid={encodedKid}&force=true", content: null, cancellationToken);
             if (fallbackResponse.IsSuccessStatusCode || fallbackResponse.StatusCode == HttpStatusCode.NotFound)
                 return;
 
